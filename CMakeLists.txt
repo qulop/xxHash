@@ -8,22 +8,30 @@
 #
 # For details, see <https://creativecommons.org/publicdomain/zero/1.0/>.
 cmake_minimum_required (VERSION 2.8.12 FATAL_ERROR)
-set(XXHASH_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
+
+set(XXHASH_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+
 file(STRINGS "${XXHASH_DIR}/xxhash.h" XXHASH_VERSION_MAJOR REGEX "^#define XXH_VERSION_MAJOR +([0-9]+) *$")
 string(REGEX REPLACE "^#define XXH_VERSION_MAJOR +([0-9]+) *$" "\\1" XXHASH_VERSION_MAJOR "${XXHASH_VERSION_MAJOR}")
+
 file(STRINGS "${XXHASH_DIR}/xxhash.h" XXHASH_VERSION_MINOR REGEX "^#define XXH_VERSION_MINOR +([0-9]+) *$")
 string(REGEX REPLACE "^#define XXH_VERSION_MINOR +([0-9]+) *$" "\\1" XXHASH_VERSION_MINOR "${XXHASH_VERSION_MINOR}")
+
 file(STRINGS "${XXHASH_DIR}/xxhash.h" XXHASH_VERSION_RELEASE REGEX "^#define XXH_VERSION_RELEASE +([0-9]+) *$")
 string(REGEX REPLACE "^#define XXH_VERSION_RELEASE +([0-9]+) *$" "\\1" XXHASH_VERSION_RELEASE "${XXHASH_VERSION_RELEASE}")
+
 set(XXHASH_VERSION_STRING "${XXHASH_VERSION_MAJOR}.${XXHASH_VERSION_MINOR}.${XXHASH_VERSION_RELEASE}")
 set(XXHASH_LIB_VERSION ${XXHASH_VERSION_STRING})
 set(XXHASH_LIB_SOVERSION "${XXHASH_VERSION_MAJOR}")
+
 mark_as_advanced(XXHASH_VERSION_MAJOR XXHASH_VERSION_MINOR XXHASH_VERSION_RELEASE XXHASH_VERSION_STRING XXHASH_LIB_VERSION XXHASH_LIB_SOVERSION)
+
 if("${CMAKE_VERSION}" VERSION_LESS "3.13")
     #message(WARNING "CMake ${CMAKE_VERSION} has no CMP0077 policy: options will erase uncached/untyped normal vars!")
 else()
     cmake_policy (SET CMP0077 NEW)
 endif()
+
 if("${CMAKE_VERSION}" VERSION_LESS "3.0")
     project(xxHash C)
 else()
@@ -32,16 +40,20 @@ else()
         VERSION ${XXHASH_VERSION_STRING}
         LANGUAGES C)
 endif()
+
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Project build type" FORCE)
   set_property(CACHE CMAKE_BUILD_TYPE
     PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
 endif()
+
 if(NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "xxHash build type: ${CMAKE_BUILD_TYPE}")
 endif()
-option(BUILD_SHARED_LIBS "Build shared library" OFF)
+
+option(XXHASH_BUILD_SHARED_LIBS "Build shared library" OFF)
 option(XXHASH_BUILD_XXHSUM "Build the xxhsum binary" OFF)
+
 # If XXHASH is being bundled in another project, we don't want to
 # install anything.  However, we want to let people override this, so
 # we'll use the XXHASH_BUNDLED_MODE variable to let them do that; just
@@ -53,23 +65,29 @@ if(NOT DEFINED XXHASH_BUNDLED_MODE)
     set(XXHASH_BUNDLED_MODE ON)
   endif()
 endif()
+
 set(XXHASH_BUNDLED_MODE ${XXHASH_BUNDLED_MODE} CACHE BOOL "" FORCE)
+
 mark_as_advanced(XXHASH_BUNDLED_MODE)
 # Allow people to choose whether to build shared or static libraries
-# via the BUILD_SHARED_LIBS option unless we are in bundled mode, in
+# via the XXHASH_BUILD_SHARED_LIBS option unless we are in bundled mode, in
 # which case we always use static libraries.
+
 include(CMakeDependentOption)
-CMAKE_DEPENDENT_OPTION(BUILD_SHARED_LIBS "Build shared libraries" ON "NOT XXHASH_BUNDLED_MODE" OFF)
+CMAKE_DEPENDENT_OPTION(XXHASH_BUILD_SHARED_LIBS "Build shared libraries" ON "NOT XXHASH_BUNDLED_MODE" OFF)
+
 # libxxhash
 add_library(xxhash "${XXHASH_DIR}/xxhash.c")
 add_library(${PROJECT_NAME}::xxhash ALIAS xxhash)
+
 target_include_directories(xxhash
   PUBLIC
     $<BUILD_INTERFACE:${XXHASH_DIR}>
     $<INSTALL_INTERFACE:include/>)
-if (BUILD_SHARED_LIBS)
+if (XXHASH_BUILD_SHARED_LIBS)
   target_compile_definitions(xxhash PUBLIC XXH_EXPORT)
 endif ()
+
 set_target_properties(xxhash PROPERTIES
   SOVERSION "${XXHASH_VERSION_STRING}"
   VERSION "${XXHASH_VERSION_STRING}")
@@ -85,11 +103,13 @@ if(XXHASH_BUILD_XXHSUM)
   target_link_libraries(xxhsum PRIVATE xxhash)
   target_include_directories(xxhsum PRIVATE "${XXHASH_DIR}")
 endif(XXHASH_BUILD_XXHSUM)
+
 # Extra warning flags
 include (CheckCCompilerFlag)
 if (XXHASH_C_FLAGS)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${XXHASH_C_FLAGS}")
 endif()
+
 foreach (flag
     -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow
     -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement
@@ -104,13 +124,16 @@ foreach (flag
   unset(test_name)
   unset(flag_to_test)
 endforeach (flag)
+
 if(NOT XXHASH_BUNDLED_MODE)
   include(GNUInstallDirs)
+  
   install(TARGETS xxhash
     EXPORT xxHashTargets
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+  
   install(FILES "${XXHASH_DIR}/xxhash.h"
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
   install(FILES "${XXHASH_DIR}/xxh3.h"
